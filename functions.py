@@ -1,4 +1,6 @@
 from anytree import Node, RenderTree, search
+from anytree.exporter import DotExporter
+from graphviz import Source
 
 def make_map(list_child_parent):
     has_parent = set()
@@ -37,6 +39,10 @@ def traceConversation(dataframe, tree, node):
     print("All child nodes:")
     children_nodes_list = getAllChildNodes(tree, node, [])
     
+    print()
+    new = search.find_by_attr(tree, node)
+    printGraph(new)
+    
     return dataframe[(dataframe['reply_to'].isin(children_nodes_list)) | (dataframe['id'].isin(children_nodes_list + [node]))]
 
 def getAllChildNodes(tree, node, children_nodes_list):
@@ -53,6 +59,10 @@ def getAllChildNodes(tree, node, children_nodes_list):
             return
             
     return children_nodes_list
+
+def printGraph(root):
+    for pre, fill, node in RenderTree(root):
+        print("%s%s" % (pre, node.name))
 
 def confirmationBiasScore(scores, current_score, threshold = 0.5):
     positive_evidence = 0
