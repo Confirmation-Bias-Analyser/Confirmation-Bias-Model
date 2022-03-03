@@ -31,7 +31,7 @@ def createTree(tree_dict, root):
         if tree_dict[key] != '':
             createTree(tree_dict[key], child)
         else:
-            return          
+            return
         
 def traceConversation(dataframe, tree, node):
     # parent = search.find_by_attr(tree, node).children
@@ -43,7 +43,7 @@ def traceConversation(dataframe, tree, node):
     new = search.find_by_attr(tree, node)
     printGraph(new)
     
-    return dataframe[(dataframe['reply_to'].isin(children_nodes_list)) | (dataframe['id'].isin(children_nodes_list + [node]))]
+    return dataframe[(dataframe['reply_to'].isin(children_nodes_list)) | (dataframe['id'].isin(children_nodes_list + [node])) | (dataframe['reply_to_id'].isin(children_nodes_list)) | (dataframe['new_id'].isin(children_nodes_list + [node]))]
 
 def getAllChildNodes(tree, node, children_nodes_list):
     children_nodes = search.find_by_attr(tree, node).children
