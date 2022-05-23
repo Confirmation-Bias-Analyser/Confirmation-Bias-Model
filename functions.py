@@ -1,6 +1,14 @@
 from anytree import Node, RenderTree, search
 from anytree.exporter import DotExporter
 from graphviz import Source
+import re
+
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+sid_obj = SentimentIntensityAnalyzer()
+from textblob import TextBlob
+from sentence_transformers import SentenceTransformer, util
+embedder = SentenceTransformer('all-MiniLM-L6-v2')
+from sklearn.cluster import KMeans
 
 def make_map(list_child_parent):
     has_parent = set()
@@ -63,50 +71,41 @@ def getAllChildNodes(tree, node, children_nodes_list):
 def printGraph(root):
     for pre, fill, node in RenderTree(root):
         print("%s%s" % (pre, node.name))
-
-def confirmationBiasScore(scores, current_score, threshold = 0.5):
-    positive_evidence = 0
-    negative_evidence = 0
-    agree = 0
-    disagree = 0
-    
-    for i in range(len(scores)):
-        if scores[i] < threshold:
-            negative_evidence += 1
-            
-            if i < len(scores) - 1 and scores[i+1] >= threshold:
-                disagree += 1
-            else:
-                agree += 1
-        else:
-            positive_evidence += 1
-            
-            if i < len(scores) - 1 and scores[i+1] < threshold:
-                disagree += 1
-            else:
-                agree += 1
-    
-    H1 = agree / (agree + disagree)
-    H2 = disagree / (agree + disagree)
-            
-    # Assume D1 is positive evidence
-    D1 = positive_evidence / (positive_evidence + negative_evidence)
-    D2 = negative_evidence / (positive_evidence + negative_evidence)
-    
-#     print('H1', H1, agree)
-#     print('H2', H2, disagree)
-#     print('D1', D1, positive_evidence)
-#     print('D2', D2, negative_evidence)
-    
-    try:
-        prob_D1_H1 = (D1 * H1) / ((D1 * H1) + (D2 * H1))
-    except:
-        prob_D1_H1 = 0
         
-    try:
-        prob_D1_H2 = (D1 * H2) / ((D1 * H2) + (D2 * H2))
-#         prob_D1_H2 = (D2 * H2) / ((D2 * H2) + (D1 * H2))
-    except:
-        prob_D1_H2 = 0
-    
-    return prob_D1_H1, prob_D1_H2    
+def cleanComments(comments_array):
+    sentences = []
+
+    for i in comments_array:
+        sequence = i.replace('\n', ' ') # Remove new line characters
+        sequence = sequence.replace('\.', '')
+        sequence = sequence.replace('.', '')
+        sequence = sequence.replace(",", " ")
+        sequence = sequence.replace("'", " ")
+        sequence = sequence.replace('\\', '')
+        sequence = sequence.replace('\'s', '')
+        sequence = sequence.replace('&gt;', '') # Remove ampersand
+        sequence = re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", sequence) # Remove the user name
+        sentences.append(sequence)
+
+    return sentences
+
+def getSentimentalResults(vaderObject, sentence):
+    textBlobResult = TextBlob(sentence)
+    vaderResult = vaderObject.polarity_scores(sentence)
+    compoundScore = vaderResult.pop('compound')
+
+    return textBlobResult.sentiment.polarity, textBlobResult.sentiment.subjectivity, vaderResult, compoundScore
+
+def getClusters(allSentences, embedder, num_clusters = 2):
+    corpus_embeddings = embedder.encode(allSentences)
+
+    # Perform kmean clustering
+    clustering_model = KMeans(n_clusters=num_clusters)
+    clustering_model.fit(corpus_embeddings)
+    cluster_assignment = clustering_model.labels_
+
+    clustered_sentences = [[] for i in range(num_clusters)]
+    for sentence_id, cluster_id in enumerate(cluster_assignment):
+        clustered_sentences[cluster_id].append([allSentences[sentence_id], sentence_id])
+
+    return cluster_assignment

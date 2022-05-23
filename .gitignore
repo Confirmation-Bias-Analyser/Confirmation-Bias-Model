@@ -2,3 +2,5 @@
 .git
 __pycache__
 Datasets
+saved_subjectivity_model
+subjectivity_tokenizer
